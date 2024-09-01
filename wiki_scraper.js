@@ -49,22 +49,29 @@ async function saveToFile(content, filename) {
     }
 }
 
-// Main execution block
-(async () => {
-    const args = process.argv.slice(2);
+// Main execution block, only runs if the script is run directly
+if (require.main === module) {
+    (async () => {
+        const args = process.argv.slice(2);
 
-    if (args.length === 0) {
-        console.log('Usage: node script.js <Wikipedia URL> [output filename]');
-        return process.exit(1);
-    }
+        if (args.length === 0) {
+            console.log('Usage: node script.js <Wikipedia URL> [output filename]');
+            return process.exit(1);
+        }
 
-    const url = args[0];
-    const filename = args[1] || 'wikipedia_content.txt';
+        const url = args[0];
+        const filename = args[1] || 'wikipedia_content.txt';
 
-    const content = await fetchWikipediaContent(url);
-    if (content) {
-        await saveToFile(content, filename);
-    } else {
-        console.log('Failed to fetch or extract content.');
-    }
-})();
+        const content = await fetchWikipediaContent(url);
+        if (content) {
+            await saveToFile(content, filename);
+        } else {
+            console.log('Failed to fetch or extract content.');
+        }
+    })();
+}
+
+module.exports = {
+    fetchWikipediaContent,
+    saveToFile
+};
