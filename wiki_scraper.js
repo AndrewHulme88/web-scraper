@@ -1,64 +1,64 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
 const fs = require('fs');
+const url = require('url');
 
-/**
- * Fetches content from a Wikipedia URL
- * @param {string} url - The URL to fetch content from
- * @return {Promise<string>} The extracted text content
- */
-async function fetchWikipediaContent(url) {
-    try {
-        const response = await axios.get(url);
-        const $ = cheerio.load(response.data);
-
-        // Assuming Wikipedia's content structure for the main text
-        let content = '';
-        $('#mw-content-text p').each((i, element) => {
-            content += $(element).text() + '\n';
-        });
-
-        return content.trim();
-    } catch (error) {
-        console.error('Failed to fetch the page:', error);
-        return null;
+class WikipediaScraper {
+    constructor() {
+        this.defaultFilename = 'wikipedia_content.txt';
     }
-}
 
-/**
- * Saves the provided content to a file
- * @param {string} content - Content to save
- * @param {string} filename - Name of the file to save to
- */
-function saveToFile(content, filename) {
-    fs.writeFile(filename, content, 'utf8', (err) => {
-        if (err) {
-            console.error('An error occurred while writing to the file:', err);
-            return;
+    async fetchContent(url) {
+        try {
+            const response = await axios.get(url);
+            return this.parseContent(response.data);
+        } catch (error) {
+            this.handleError('Failed to fetch page:', error);
+            return null;
         }
-        console.log(`Content saved to ${filename}`);
-    });
-}
-
-// Command line arguments
-const args = process.argv.slice(2);
-
-if (args.length < 1) {
-    console.log('Please provide a Wikipedia URL as an argument.');
-    process.exit(1);
-}
-
-const url = args[0];
-let filename = 'wikipedia_content.txt';
-
-if (args[1]) {
-    filename = args[1];
-}
-
-fetchWikipediaContent(url).then(content => {
-    if (content) {
-        saveToFile(content, filename);
-    } else {
-        console.log('No content to save.');
     }
-});
+
+    parseContent(html) {
+        const $ = cheerio.load(html);
+        const paragraphs = $('#mw-content-text').find('p').map((i, el) => $(el).text()).get().join('\n\n');
+        return paragraphs;
+    }
+
+    saveContent(content, filename) {
+        filename = filename || this.defaultFilename;
+        fs.writeFile(filename, content, { encoding: 'utf8' }, (err) => {
+            if (err) {
+                this.handleError(`Error writing to file ${filename}:`, err);
+                return;
+            }
+            console.log(`Content saved to ${filename}`);
+        });
+    }
+
+    handleError(message, error) {
+        console.error(message, error.message);
+    }
+
+    run(args) {
+        if (args.length < 1) {
+            console.log('Usage: node script.js <wikipedia_url> [output_filename]');
+            process.exit(1);
+        }
+
+        const parsedUrl = url.parse(args[0]);
+        if (!parsedUrl.protocol || !parsedUrl.host) {
+            this.handleError('Invalid URL provided:', args[0]);
+            process.exit(1);
+        }
+
+        const filename = args[1] || this.defaultFilename;
+        this.fetchContent(args[0]).then(content => {
+            if (content) {
+                this.saveContent(content, filename);
+            }
+        });
+    }
+}
+
+const scraper = new WikipediaScraper();
+scraper.run(process.argv.slice(2));
